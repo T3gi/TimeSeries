@@ -69,11 +69,7 @@ if __name__ == '__main__':
 
     generator = SyntheticTSGenerator(trend_degree=2, cycle_period=11.0).fit(annual_temp.values)
     sim_matrix = generator.generate(n_steps=len(annual_temp), n_simulations=500, seed=42)
-    metrics = generator.validate_adequacy(annual_temp.values, sim_matrix)
-
-    print("\n=== 2. АДЕКВАТНІСТЬ СИНТЕТИЧНИХ МОДЕЛЕЙ ===")
-    for k, v in metrics.items():
-        print(f"{k}: {v:.4f}")
+    metrics_real = generator.validate_adequacy(annual_temp.values, sim_matrix)
 
     t = np.arange(len(annual_temp), dtype=float)
     poly_trend = np.polyval(generator.poly_coeffs, t)
@@ -93,7 +89,6 @@ if __name__ == '__main__':
         poly_trend=poly_trend,
         title="Декомпозиція середньорічної температури (1881–2025, цикл = 11 років)",
         ylabel="T (°C)",
-        save_path="climate_1_decomposition.png",
     )
 
     vis.plot_clusters_and_correlations(
@@ -105,15 +100,13 @@ if __name__ == '__main__':
         pacf_detrended=report.pacf_detrended,
         cluster_names=cluster_labels,
         ylabel="T (°C)",
-        save_path="climate_2_clusters_corr.png",
     )
 
     vis.plot_synthetic_validation(
         ts=annual_temp,
         sim_matrix=sim_matrix,
-        metrics=metrics,
+        metrics=metrics_real,
         ylabel="T (°C)",
-        save_path="climate_3_synthetic_validation.png",
     )
 
     vis.plot_summary_dashboard(
@@ -123,11 +116,10 @@ if __name__ == '__main__':
         acf_raw=report.acf_raw[:13],
         pacf_raw=report.pacf_raw[:13],
         sim_matrix=sim_matrix,
-        metrics=metrics,
+        metrics=metrics_real,
         dataset_title="Середньорічна температура (raw.csv)",
         ylabel="T (°C)",
         cluster_names=cluster_labels,
-        save_path="climate_4_dashboard.png",
     )
     plt.show()
 
@@ -137,9 +129,15 @@ if __name__ == '__main__':
     analyzer = TimeSeriesAnalyzer(ts_k, cycle_period=4)
     report = analyzer.run_full_analysis(n_clusters=3, nlags=12)
 
+    print("=== 2. ВЛАСТИВОСТІ ДАТАСЕТУ ===")
+    print("Описова статистика:", report.descriptive)
+    print("Стаціонарність:", report.stationarity)
+    print(f"Сила тренду F_T = {report.trend_strength:.3f}, Сила циклу F_S = {report.seasonal_strength:.3f}")
+    print(f"Silhouette кластеризації = {report.silhouette:.3f}")
+
     gen = SyntheticTSGenerator(trend_degree=3, cycle_period=4.0).fit(np.log(ts_k.values))
     sim_matrix = np.exp(gen.generate(n_steps=len(ts_k), n_simulations=500, seed=42))
-    metrics = gen.validate_adequacy(ts_k.values, sim_matrix)
+    metrics_data = gen.validate_adequacy(ts_k.values, sim_matrix)
 
     vis = TimeSeriesVisualizer()
     cluster_labels = [
@@ -155,7 +153,6 @@ if __name__ == '__main__':
         resid=report.resid,
         title="Декомпозиція іпотечних продажів (2005-Q2 – 2014-Q1, сезон = 4 кв.)",
         ylabel="Угоди (тис.)",
-        save_path="mortgage_1_decomposition.png",
     )
 
     vis.plot_clusters_and_correlations(
@@ -167,15 +164,13 @@ if __name__ == '__main__':
         pacf_detrended=report.pacf_detrended,
         cluster_names=cluster_labels,
         ylabel="Угоди (тис.)",
-        save_path="mortgage_2_clusters_corr.png",
     )
 
     vis.plot_synthetic_validation(
         ts=ts_k,
         sim_matrix=sim_matrix,
-        metrics=metrics,
+        metrics=metrics_data,
         ylabel="Угоди (тис.)",
-        save_path="mortgage_3_synthetic_validation.png",
     )
 
     vis.plot_summary_dashboard(
@@ -185,10 +180,12 @@ if __name__ == '__main__':
         acf_raw=report.acf_raw,
         pacf_raw=report.pacf_raw,
         sim_matrix=sim_matrix,
-        metrics=metrics,
+        metrics=metrics_data,
         dataset_title="Іпотечні продажі (Data_Set_4.xlsx)",
         ylabel="Угоди (тис.)",
         cluster_names=cluster_labels,
-        save_path="mortgage_4_dashboard.png",
     )
     plt.show()
+
+    print("Адекватність (raw.csv):", metrics_real)
+    print("Адекватність (Data_Set_4.xlsx):", metrics_data)
